@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geolocalización de Usuario</title>
+  <style>
+    #status {
+      font-weight: bold;
+      margin-top: 20px;
+    }
+    #loading {
+      display: none;
+      font-size: 18px;
+      color: #007bff;
+    }
+  </style>
+</head>
+<body>
+  <h1>Información de Geolocalización</h1>
+  <p><strong>Hora de Entrada:</strong> <span id="entry-time"></span></p>
+  <p><strong>IP:</strong> <span id="ip"></span></p>
+  <p><strong>País:</strong> <span id="country"></span></p>
+  <p><strong>Estado:</strong> <span id="region"></span></p>
+  <p><strong>Municipio:</strong> <span id="city"></span></p>
+  <p><strong>Ubicación Exacta:</strong> <span id="location"></span></p>
+  <p id="status"></p>
+  <p id="loading">Cargando ubicación...</p>
+
+  <script>
+    const entryTime = new Date();
+    document.getElementById('entry-time').textContent = entryTime.toLocaleString();
+
+    const statusElement = document.getElementById('status');
+    const loadingElement = document.getElementById('loading');
+    const locationElement = document.getElementById('location');
+    const ipElement = document.getElementById('ip');
+    const countryElement = document.getElementById('country');
+    const regionElement = document.getElementById('region');
+    const cityElement = document.getElementById('city');
+
+    let isLocationDetermined = false; // Para evitar múltiples intentos después de obtener una ubicación
+
+    // Función para mostrar el estado de la geolocalización
+    function showStatus(message) {
+      statusElement.textContent = message;
+    }
+
+    // Función para obtener los datos de geolocalización usando la API IPInfo
+    function getIPInfo() {
+      const token = 'f01c886651ecad'; // Reemplaza esto con tu token de IPInfo
+      const url = `https://ipinfo.io?token=${token}`;
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          ipElement.textContent = data.ip;
+          countryElement.textContent = data.country;
+          regionElement.textContent = data.region;
+          cityElement.textContent = data.city;
+
+          if (!isLocationDetermined) {
+            locationElement.textContent = `Ubicación aproximada (IP): ${data.city}, ${data.region}, ${data.country}`;
+            showStatus('Ubicación obtenida desde la IP.');
+            isLocationDetermined = true;
+          }
+        })
+        .catch(error => {
+          console.error("Error al obtener datos de IPInfo:", error);
+          showStatus('No se pudo obtener información de la IP.');
+        });
+    }
+
+    // Función para obtener la geolocalización exacta usando HTML5
+    function getExactLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+
+          if (!isLocationDetermined) {
+            locationElement.textContent = `Ubicación exacta (GPS): Latitud: ${lat}, Longitud: ${lon}`;
+            showStatus('Ubicación obtenida desde el GPS.');
+            isLocationDetermined = true;
+          }
+        }, error => {
+          console.error("Error al obtener la ubicación exacta:", error);
+          showStatus('Error al obtener ubicación desde el GPS. Intentando con IP...');
+          if (!isLocationDetermined) {
+            getIPInfo(); // Intentar obtener la ubicación por IP si falla el GPS
+          }
+        });
+      } else {
+        showStatus('La geolocalización no es compatible con este navegador. Intentando con IP...');
+        getIPInfo(); // Si el navegador no soporta geolocalización, recurrimos a la IP
+      }
+    }
+
+    // Función para iniciar la geolocalización
+    function initGeolocation() {
+      loadingElement.style.display = 'block';
+      showStatus('Determinando ubicación...');
+      setTimeout(() => {
+        // Intentamos primero con el GPS
+        getExactLocation();
+
+        // Si no se obtiene ubicación dentro de 10 segundos, intentamos con IP
+        setTimeout(() => {
+          if (!isLocationDetermined) {
+            showStatus('GPS no disponible o se agotó el tiempo. Intentando con IP...');
+            getIPInfo();
+          }
+        }, 10000); // 10 segundos de espera para GPS
+      }, 100);
+    }
+
+    // Iniciar geolocalización al cargar la página
+    initGeolocation();
+
+  </script>
+</body>
+</html>
